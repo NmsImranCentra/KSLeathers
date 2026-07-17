@@ -291,6 +291,10 @@ panelRow.appendChild(fileName);
  };
 
  document.getElementById("printInvoiceBtn").onclick=function(){
+     document.querySelectorAll(".row-selected")
+        .forEach(r=>r.classList.remove("row-selected"));
+
+    selected = null;
    window.print();
  };
 });
