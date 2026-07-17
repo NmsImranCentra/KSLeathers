@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=190mm, initial-scale=1.0">
+    <title>KS Leathers Invoice</title>
+    <!-- Include PDF.js library for PDF import capability -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        html, body {
+            min-width: 190mm;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            -webkit-print-color-adjust: exact;
+        }
+        .invoice-container {
+            width: 190mm;
+            margin: 0 auto;
+            box-sizing: border-box;
+            overflow-x: visible;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        /* Modernized Form Enhancement Controls */
+        .import-panel {
+            width: 190mm;
+            margin: 20px auto;
+            padding: 20px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .panel-row {
+            display: flex;
+            align-items: center;
+justify-content: center;
+            gap: 20px;
+        }
+        .panel-row:not(:last-child) {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .import-panel label {
+            font-weight: 600;
+            color: #334155;
+            font-size: 10.5pt;
+        }
+        .import-panel input[type="file"] {
+            font-size: 10pt;
+            color: #475569;
+        }
+        
+        /* Modernized Action Buttons */
+        .btn-container {
+            display: flex;
+            gap: 10px;
+        }
+        .action-btn {
+            font-family: inherit;
+            font-size: 9.5pt;
+            font-weight: 600;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+		.btn-Import {
+            background-color: #2563eb;
+            color: white;
+        }
+        .btn-Import:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-secondary {
+            background-color: #006400;
+            color: white;
+            border-color: #d1d5db;
+        }
+        .btn-secondary:hover {
+            background-color: #f8fafc;
+            border-color: #9ca3af;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        /* Seamless Input Styling to preserve table cell alignments precisely */
+        .cell-input {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+            text-align: inherit;
+            padding: 0;
+            margin: 0;
+            outline: none;
+        }
+        .cell-input[readonly] {
+            cursor: default;
+        }
+        
+        /* Textarea styling for multiple lines */
+        .cell-textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+            text-align: inherit;
+            padding: 0;
+            margin: 0;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            display: block;
+        }
+
+        /* Hide HTML5 input step arrows globally */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Prevent interactive elements from rendering during Print operations */
+        @media print {
+            .import-panel {
+                display: none !important;
+            }
+            .cell-input {
+                color: #000 !important;
+            }
+        }
+    </style>
+
+<style>
+.row-selected{outline:2px solid #2563eb !important;background:#eff6ff !important;}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+ const panelRow = document.getElementById('action-row');
+ const btnWrap=document.createElement('div');
+ btnWrap.className = 'btn-container';
+ 
+ btnWrap.innerHTML=
+ '<button id="addRowBtn" class="action-btn btn-secondary" type="button">Add Row</button> ' +
+                   '<button id="deleteRowBtn" class="action-btn btn-danger" type="button">Delete Row</button> ' +
+                   '<button id="printInvoiceBtn" class="action-btn btn-primary" type="button">Print Invoice</button>'+
+				   '<button id="importPdfBtn" class="action-btn btn-Import" type="button">Import PDF</button> ';
+ panelRow.appendChild(btnWrap);
+
+ let selected=null;
+ function bindRows(){
+   document.querySelectorAll("table.invoice-table tr").forEach(r=>{
+      if(r.querySelector(".item-sqft-class") || r.dataset.dynamic==="1"){
+        r.onclick=function(){
+          document.querySelectorAll(".row-selected").forEach(x=>x.classList.remove("row-selected"));
+          selected=this;
+          this.classList.add("row-selected");
+        };
+      }
+   });
+ }
+ bindRows();
+ 
+ document.getElementById("importPdfBtn").onclick = function () {
+    document.getElementById("pdf-file").click();
+};
+const fileName = document.createElement("span");
+fileName.id = "selectedPdfName";
+fileName.style.marginLeft = "12px";
+fileName.style.fontSize = "10pt";
+fileName.style.color = "#475569";
+fileName.textContent = "No file selected";
+panelRow.appendChild(fileName);
+
+ document.getElementById("addRowBtn").onclick=function(){
+   if(!selected){alert("Select an item row first.");return;}
+   let next=selected.nextElementSibling;
+   while(next && next.querySelectorAll("input, textarea").length===0 && next.cells.length > 5){
+      const clone=selected.cloneNode(true);
+      clone.dataset.dynamic="1";
+      clone.classList.remove("row-selected");
+      
+      clone.style.borderTop = "none";
+      clone.querySelectorAll('td').forEach(td => td.style.borderTop = "none");
+
+      clone.querySelectorAll("input, textarea").forEach(i=>{
+        if(i.tagName === "INPUT" && i.type==="number") i.value="";
+        else if(i.hasAttribute("readonly")) i.value="0.00";
+        else i.value="";
+        if(i.id) i.removeAttribute("id");
+      });
+      
+      clone.querySelectorAll("input, textarea").forEach(input => {
+         input.addEventListener('input', calculateInvoice);
+      });
+
+      next.replaceWith(clone);
+      bindRows();
+      clone.click();
+      calculateInvoice();
+      return;
+   }
+   alert("No blank rows available.");
+ };
+
+ document.getElementById("deleteRowBtn").onclick=function(){
+   if(!selected){alert("Select a row first.");return;}
+   if(!selected.dataset.dynamic){alert("The original first row cannot be deleted.");return;}
+   const blank=document.createElement("tr");
+   blank.style.height="14.25pt";
+   for(let i=0;i<8;i++){
+      const td=document.createElement("td");
+      if(i==1){td.colSpan=2;i++;}
+      td.style.borderLeft="2px solid #000";
+      td.style.borderRight="2px solid #000";
+      td.style.borderTop="none";
+      td.style.borderBottom="none";
+      blank.appendChild(td);
+   }
+   selected.replaceWith(blank);
+   selected=null;
+   calculateInvoice();
+ };
+
+ document.getElementById("printInvoiceBtn").onclick=function(){
+   window.print();
+ };
+});
+</script>
+
+</head>
+<body>
+
+<!-- Interactive Control Panel for importing source data -->
+<div class="import-panel">
+    <div class="panel-row">
+        <div>
+            <input
+    type="file"
+    id="pdf-file"
+    accept=".pdf"
+    style="display:none;font-family: 'Calibri', sans-serif;font-size: 15pt; text-align: center; vertical-align: middle; color: #64748b;">Invoice Generation
+        </div>
+        <!--<div style="font-family: 'Calibri', sans-serif;font-size: 15pt; text-align: center; vertical-align: middle; color: #64748b;">Invoice Generation</div>-->
+    </div>
+    <div class="panel-row" id="action-row">
+        <!--<div style="font-size: 10pt; font-weight: 600; color: #334155;">Invoice Row Management & Output</div>-->
+    </div>
+</div>
+
+<div class="invoice-container">
+    <table class="invoice-table">
+
+        <colgroup>
+            <col style="width: 8.0%;">
+            <col style="width: 20.0%;">
+            <col style="width: 10%;">
+            <col style="width: 8.0%;">
+            <col style="width: 12.1%;">
+            <col style="width: 10%;">
+            <col style="width: 11.5%;">
+            <col style="width: 17.4%;">
+        </colgroup>
+		<br>
+		<br>
+		<br>
+				<br>
+        <tr style="height: 16.5pt;">
+            <td colspan="8" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: top; border-top: none; border-bottom: none; border-left: none; border-right: none; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="vendor-gstin" class="cell-input" value="GSTIN: 33DRMPK6220E1Z0">
+            </td>
+        </tr>
+        <tr style="height: auto;">
+            <td colspan="8" style="font-family: 'Cambria', sans-serif; color: #4F81BB; text-align: center; vertical-align: top; border-top: none; border-bottom: none; border-left: none; border-right: none; padding: 2px 2px; box-sizing: border-box; line-height: 1.4;">
+                <span style="font-size: 28.0pt; font-weight: bold; display: block; margin-bottom: 5px;">KS LEATHERS</span>
+                <span style="font-size: 13.0pt; font-weight: bold;">No: 260, Maniyampattu Road, Rajiv Gandhi Nagar Sipcot<br>Narasingapuram – Ranipet District – 632403.<br>CELL : 9894325990</span>
+            </td>
+        </tr>
+        <tr style="height: 15.6pt;">
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 10.0pt; text-align: left; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 12.0pt; font-weight: bold; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">TAX INVOICE</td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">Transportation Mode :&nbsp;</span><input type="text" id="transport-mode" class="cell-input" value=""></div>
+            </td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">Invoice No.&nbsp;</span><input type="text" id="invoice-no" class="cell-input" value="08/2026-27"></div>
+            </td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">Vehicle No :&nbsp;</span><input type="text" id="vehicle-no" class="cell-input"  value=""></div>
+            </td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">Invoice Date :&nbsp;</span><input type="text" id="invoice-date" class="cell-input" value="14.07.2026"></div>
+            </td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">Delivery at :&nbsp;</span><input type="text" id="delivery-at" class="cell-input"  value=""></div>
+            </td>
+        </tr>
+        <tr style="height: 14.25pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: none; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">To,</td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">M/S,&nbsp;</span><input type="text" id="consignee-ms" class="cell-input" value=""></div>
+            </td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="buyer-name" class="cell-input" placeholder="Buyer Name" value="M/S, SARDARI LEATHER CO.">
+            </td>
+			<td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+			    <input type="text" id="consignee-line1" class="cell-input" value="">
+			</td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="buyer-address1" class="cell-input" placeholder="Buyer Address Line 1" value="Gall No. 75, House No. 5588,">
+            </td>
+			<td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+			    <input type="text" id="consignee-line2" class="cell-input" value="">
+			</td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="buyer-address2" class="cell-input" placeholder="Buyer Address Line 2" value="Reghar Pura, Karol Bagh,">
+            </td>
+			<td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+			    <input type="text" id="consignee-line3" class="cell-input" value="">
+			</td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: none; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="buyer-city-pin" class="cell-input" placeholder="Buyer City & Pin" value="New Delhi – 110005.">
+            </td>
+			<td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+			    <input type="text" id="consignee-line4" class="cell-input" value="">
+			</td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex;"><span style="white-space: nowrap;">GSTIN:</span><input type="text" id="buyer-gstin" class="cell-input" placeholder="Buyer GSTIN" value="07ACIFS2069P1ZG"></div>
+            </td>
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: none; border-bottom: none; border-left: none; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+        </tr>
+        <tr style="height: 28.8pt;">
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">S. NO</td>
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">PARTICULARS</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: none; padding: 1px 6px; box-sizing: border-box">HSN CODE</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: none; padding: 1px 6px; box-sizing: border-box">TOTAL SIDE (HIDE)</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">TOTAL SQ FT</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">RATE</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">AMOUNT / RUPEES</td>
+        </tr>
+        <tr style="height: auto; border-top: none;">
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <input type="text" id="item-sno" class="cell-input" value="B/S 09">
+            </td>
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <textarea id="item-particulars" class="cell-textarea" rows="1" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'">Finished Leather</textarea>
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <input type="text" id="item-hsn" class="cell-input" value="4107">
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <input type="text" id="item-side" class="cell-input" value="1052 Pcs">
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <input type="number" id="base-sqft" class="cell-input item-sqft-class" value="7783" step="any">
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 6px; box-sizing: border-box">
+                <input type="number" id="base-rate" class="cell-input item-rate-class" value="30.00" step="any">
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 4px 12px 4px 6px; box-sizing: border-box">
+                <input type="text" id="base-amount" class="cell-input item-amount-class" value="233490.00" step="any" readonly>
+            </td>
+        </tr>
+        <!-- Empty Spacer Rows Structuring Table Framework Exactly -->
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        <tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+		<tr style="height: 14.25pt;"><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td colspan="2" style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td><td style="border-left: 2px solid #000; border-right: 2px solid #000; border-top: none; border-bottom: none;"></td></tr>
+        
+        <tr style="height: 20.0pt; border-top: none;">
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle;  border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px;">
+                <input type="text" id="manual-bundles" class="cell-input" style="font-size: 11pt;">
+            </td>
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: none; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">TOTAL</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <input type="text" id="total-side" class="cell-input" value="1052 Pcs">
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 12px 1px 6px; box-sizing: border-box">
+                <input type="text" id="total-amount-rupees" class="cell-input" value="233490.00" step="any" readonly style="text-align: right;">
+            </td>
+        </tr>
+        <tr style="height: 14.45pt;">
+            <td colspan="5" rowspan="11" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 6px 6px; box-sizing: border-box">
+                Rupees (In Words)<br>
+                <textarea id="amount-in-words" class="cell-textarea" rows="2" style="font-weight: bold; font-size: 11.5pt; line-height: 1.45;" readonly>(Two Lakh Forty Five thousand One Hundred and Sixty Five Only)</textarea>
+                Bank Details: IDBI BANK<br>
+                Ranipet Branch<br>
+                A/C No : 1012102000009362.<br>
+                IFSC CODE: IBKL0001012<br>
+                Buyers Signature:
+            </td>
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex; justify-content: center; align-items: center;">
+                    <span style="white-space: nowrap;">CGST @ &nbsp;</span>
+                    <input type="number" id="cgst-rate" class="cell-input" value="0" style="width: 35px; text-align: center;" step="any">
+                    <span>%</span>
+                </div>
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top: 2px solid #000; border-bottom:  2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 12px 1px 6px; box-sizing: border-box">
+                <input type="text" id="cgst-amount" class="cell-input" value="0.00" step="any" readonly style="text-align: right;">
+            </td>
+        </tr>
+        <tr style="height: 5.6pt;">
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex; justify-content: center; align-items: center;">
+                    <span style="white-space: nowrap;">SGST @ &nbsp;</span>
+                    <input type="number" id="sgst-rate" class="cell-input" value="0" style="width: 35px; text-align: center;" step="any">
+                    <span>%</span>
+                </div>
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top:  2px solid #000; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 12px 1px 6px; box-sizing: border-box">
+                <input type="text" id="sgst-amount" class="cell-input" value="0.00" step="any" readonly style="text-align: right;">
+            </td>
+        </tr>
+        <tr style="height: 5.0pt;">
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">
+                <div style="display: flex; justify-content: center; align-items: center;">
+                    <span style="white-space: nowrap;">IGST @ &nbsp;</span>
+                    <input type="number" id="igst-rate" class="cell-input" value="5" readonly style="width: 35px; text-align: center;" step="any">
+                    <span>%</span>
+                </div>
+            </td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top:  2px solid #000; border-bottom: none; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 12px 1px 6px; box-sizing: border-box">
+                <input type="text" id="igst-amount" class="cell-input" value="11675.00"readonly step="any" style="text-align: right;">
+            </td>
+        </tr>
+
+        <tr style="height: 5.25pt;">
+            <td colspan="2" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: center; vertical-align: middle; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 4px; box-sizing: border-box">Total Amount :</td>
+            <td style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: right; vertical-align: middle; border-top:  2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 12px 1px 6px; box-sizing: border-box">
+                <input type="text" id="grand-total" class="cell-input" value="245165.00" step="any" readonly style="text-align: right; font-weight: bold;">
+            </td>
+        </tr>
+        <tr style="height: 14.25pt;">
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 11.0pt; text-align: left; vertical-align: top; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; padding: 1px 6px; box-sizing: border-box">Certified that the given above are true correct</td>
+        </tr>
+        <tr style="height: 13.25pt;">
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 10.0pt; font-weight: bold; color: #000000; text-align: center; vertical-align: top; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right:  2px solid #000; padding: 1px 6px; box-sizing: border-box">For KS LEATHERS</td>
+        </tr>
+        <tr style="height: 13.25pt;">
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 10.0pt; color: #000000; text-align: left; vertical-align: top; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right:  2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+        </tr>
+        <tr style="height: 13.25pt;">
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 10.0pt; color: #000000; text-align: left; vertical-align: top; border-top: none; border-bottom: none; border-left: 2px solid #000; border-right:  2px solid #000; padding: 1px 6px; box-sizing: border-box"></td>
+        </tr>
+        <tr style="height: 15.0pt;">
+            <td colspan="3" style="font-family: 'Calibri', sans-serif; font-size: 10.0pt; color: #000000; text-align: center; vertical-align: top; border-top: none; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right:  2px solid #000; padding: 1px 6px; box-sizing: border-box">Authorized Signatory</td>
+        </tr>
+    </table>
+</div>
+
+<script>
+    // Configuration pointing PDF.js to correct CDN worker location
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    // Core application selectors
+    const totalAmountRupees = document.getElementById('total-amount-rupees');
+    
+    const cgstAmtInput = document.getElementById('cgst-amount');
+    const sgstAmtInput = document.getElementById('sgst-amount');
+    const igstAmtInput = document.getElementById('igst-amount');
+    const grandTotalInput = document.getElementById('grand-total');
+    const amountInWordsTextarea = document.getElementById('amount-in-words');
+    
+    const cgstRateInput = document.getElementById('cgst-rate');
+    const sgstRateInput = document.getElementById('sgst-rate');
+    const igstRateInput = document.getElementById('igst-rate');
+
+    function updateTaxAmountsFromRates(combinedTotal) {
+        if (cgstRateInput.value !== "") {
+            cgstAmtInput.value = formatIndianCurrency(
+    combinedTotal * (parseFloat(cgstRateInput.value)/100)
+);
+        }
+        if (sgstRateInput.value !== "") {
+           sgstAmtInput.value = formatIndianCurrency(
+    combinedTotal * (parseFloat(sgstRateInput.value)/100)
+);
+        }
+        if (igstRateInput.value !== "") {
+             igstAmtInput.value = formatIndianCurrency(
+    combinedTotal * (parseFloat(igstRateInput.value)/100)
+);
+        }
+    }
+
+    function calculateInvoice() {
+        let combinedTotal = 0;
+
+        document.querySelectorAll("table.invoice-table tr").forEach(row => {
+            const sqftInp = row.querySelector(".item-sqft-class");
+            const rateInp = row.querySelector(".item-rate-class");
+            const amtInp = row.querySelector(".item-amount-class");
+
+            if (sqftInp && rateInp && amtInp) {
+                const sqft = unformatIndianCurrency(sqftInp.value);
+const rate = unformatIndianCurrency(rateInp.value);
+                const rowAmount = sqft * rate;
+                
+                amtInp.value = formatIndianCurrency(rowAmount);
+                combinedTotal += rowAmount;
+            }
+        });
+
+        totalAmountRupees.value = formatIndianCurrency(combinedTotal);
+        updateTaxAmountsFromRates(combinedTotal);
+
+        const cgst = unformatIndianCurrency(cgstAmtInput.value);
+const sgst = unformatIndianCurrency(sgstAmtInput.value);
+const igst = unformatIndianCurrency(igstAmtInput.value);
+        
+        const grandTotal = combinedTotal + cgst + sgst + igst;
+        grandTotalInput.value = formatIndianCurrency(grandTotal);
+        
+        amountInWordsTextarea.value = convertNumberToWords(Math.round(grandTotal));
+    }
+
+    document.querySelectorAll('.item-sqft-class, .item-rate-class').forEach(input => {
+        input.addEventListener('input', calculateInvoice);
+    });
+    [cgstAmtInput, sgstAmtInput, igstAmtInput, cgstRateInput, sgstRateInput, igstRateInput].forEach(input => {
+        input.addEventListener('input', calculateInvoice);
+    });
+
+    function convertNumberToWords(num) {
+        if (num === 0) return "Rupees Zero Only";
+        
+        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        function inWords(n) {
+            if (n < 20) return a[n];
+            if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+            return a[Math.floor(n / 100)] + 'Hundred ' + (n % 100 !== 0 ? 'and ' + inWords(n % 100) : '');
+        }
+
+        let str = '';
+        let lakhs = Math.floor(num / 100000);
+        num %= 100000;
+        let thousands = Math.floor(num / 1000);
+        num %= 1000;
+        let remaining = num;
+
+        if (lakhs > 0) str += inWords(lakhs) + 'Lakh ';
+        if (thousands > 0) str += inWords(thousands) + 'thousand ';
+        if (remaining > 0) str += inWords(remaining);
+
+        return '(' + str.trim() + ' Only)';
+    }
+
+ // PDF Import Infrastructure with strict diagnostics logging
+document.getElementById('pdf-file').addEventListener('change', function(e) {
+if (e.target.files.length) {
+    document.getElementById("selectedPdfName").textContent =
+        e.target.files[0].name;
+}
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const typedarray = new Uint8Array(evt.target.result);
+        
+        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+            return pdf.getPage(1).then(function(page) {
+                return page.getTextContent().then(function(textContent) {
+				console.clear();
+
+textContent.items.forEach((item, i) => {
+    console.log(
+        i,
+        item.str,
+        "X=", Math.round(item.transform[4]),
+        "Y=", Math.round(item.transform[5])
+    );
+});
+                    parseAndPopulateFields(textContent.items);
+                });
+            });
+        }).catch(err => {
+            alert("Failed to safely parse the selected PDF layout framework: " + err.message);
+        });
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+function parseAndPopulateFields(items) {
+
+    const rows = items
+        .filter(i => i.str.trim() !== "")
+        .map(i => ({
+            text: i.str.trim(),
+            x: Math.round(i.transform[4]),
+            y: Math.round(i.transform[5])
+        }));
+
+    // Left side of invoice only
+    const left = rows.filter(r => r.x < 250);
+
+    // Group by Y coordinate
+    const grouped = {};
+
+    left.forEach(r => {
+        if (!grouped[r.y])
+            grouped[r.y] = [];
+
+        grouped[r.y].push(r.text);
+    });
+
+    // Create ordered lines
+    const lines = Object.keys(grouped)
+        .map(Number)
+        .sort((a,b)=>b-a)
+        .map(y=>grouped[y].join(" "));
+
+    console.log(lines);
+
+    // Invoice No
+    const inv = lines.find(x=>x.startsWith("Invoice No."));
+    if(inv)
+        document.getElementById("invoice-no").value =
+            inv.replace(/^Invoice No\.?\s*/i,"").trim();
+
+    // Invoice Date
+    const dt = lines.find(x=>x.startsWith("Invoice Date"));
+    if(dt)
+        document.getElementById("invoice-date").value =
+            dt.replace(/^Invoice Date\s*:?\s*/i,"").trim();
+
+    // Buyer Details
+    const to = lines.findIndex(x=>x==="To,");
+
+    if(to>=0){
+
+        document.getElementById("buyer-name").value =
+            (lines[to+1]||"").replace(/^M\/S,\s*/i,"");
+
+        document.getElementById("buyer-address1").value =
+            lines[to+2]||"";
+
+        document.getElementById("buyer-address2").value =
+            lines[to+3]||"";
+
+        document.getElementById("buyer-city-pin").value =
+            lines[to+4]||"";
+
+        const gst = lines.find(x=>x.startsWith("GSTIN"));
+
+        if(gst){
+            document.getElementById("buyer-gstin").value =
+                gst.replace(/^GSTIN\s*:?\s*/i,"");
+        }
+    }
+}
+function formatIndianCurrency(value) {
+
+    value = parseFloat(value);
+
+    if (isNaN(value))
+        return "";
+
+    return value.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function unformatIndianCurrency(value) {
+
+    return parseFloat(
+        String(value).replace(/,/g, "")
+    ) || 0;
+}
+
+    // Initialize base rows matrix values
+    calculateInvoice();
+</script>
+</body>
+</html>
